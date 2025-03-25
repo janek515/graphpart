@@ -65,10 +65,10 @@ Graph* read_file(char *filename) {
     // max vertices/nodes per row
     fscanf(file, "%d\n", &graph->max_row_nodes);
 
-    char buffer[MAX];  // line buffer
+    char buffer[MAX];  // line buffers
     char line2_copy[MAX];
-    char line4_copy[MAX];   //line 4 copy
-    char line5_copy[MAX];   //line 5 copy
+    char line4_copy[MAX];
+    char line5_copy[MAX]; 
 
     // skip line 2 (store for later)
     fgets(buffer, sizeof(buffer), file);
