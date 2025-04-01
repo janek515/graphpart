@@ -1,16 +1,20 @@
 #ifndef GRAPH_H
 #define GRAPH_H
+#include "io_handler.h"
 
 typedef struct {
-    int max_nodes_per_row; // Maksymalna liczba węzłów w wierszu
-    int num_nodes;         // Liczba węzłów w grafie
-    int num_edges;         // Liczba krawędzi
-    int *node_indices;     // Indeksy węzłów w wierszach
-    int *row_pointers;     // Wskaźniki na początki wierszy
-    int *edge_groups;      // Lista węzłów połączonych krawędziami
-    int *group_pointers;   // Wskaźniki na początki grup krawędziowych
-} Graph;
-
-Graph* read_file(char *filename);
+    int rows; // Liczba wierszy
+    int cols; // Liczba kolumn
+    int nnz; // Liczba niezerowych elementow
+    double *values; // Wartosci niezerowych elementow
+    int *col_indices ; // Indeksy kolumn
+    int *row_ptr; // Wskazniki wierszy
+} SparseMatrix ;
+  
+SparseMatrix* create_adjacency_matrix(Graph *graph);
+void print_sparse_matrix(SparseMatrix *matrix);
+void free_sparse_matrix(SparseMatrix *matrix);
+void print_dense_adjacency_matrix(SparseMatrix *matrix);
+void print_dense_matrix(SparseMatrix *matrix);
 
 #endif

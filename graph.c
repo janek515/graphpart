@@ -1,100 +1,149 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include "graph.h"
 
-Graph* read_file(char *filename) {
-   FILE *file = fopen(filename, "r");
-    if (!file) {
-        printf("Błąd: Nie można otworzyć pliku '%s'\n", filename);
-        exit(1);
+SparseMatrix* create_adjacency_matrix(Graph *graph) 
+{
+    SparseMatrix *matrix = (SparseMatrix *)malloc(sizeof(SparseMatrix));
+    if (!matrix) {
+        printf("Error: Failed to allocate memory for SparseMatrix.\n");
+        return NULL;
     }
 
-    Graph *g = (Graph*)malloc(sizeof(Graph));
-    if (!g) {
-        printf("Błąd: Nie udało się zaalokować pamięci dla grafu\n");
-        fclose(file);
-        exit(0);
+    matrix->rows = graph->num_vertices;
+    matrix->cols = graph->num_vertices;
+    matrix->nnz = graph->num_edges;
+
+    matrix->values = (double *)malloc(matrix->nnz * sizeof(double));
+    matrix->col_indices = (int *)malloc(matrix->nnz * sizeof(int));
+    matrix->row_ptr = (int *)malloc((matrix->rows + 1) * sizeof(int));
+
+    if (!matrix->values || !matrix->col_indices || !matrix->row_ptr) {
+        printf("Error: Failed to allocate memory for matrix components.\n");
+        free(matrix->values);
+        free(matrix->col_indices);
+        free(matrix->row_ptr);
+        free(matrix);
+        return NULL;
     }
 
-    // max_nodes_per_row
-    fscanf(file, "%d\n", &g->max_nodes_per_row);
-
-    char buffer[4096];  // bufor do odczytu linii
-    char *token;
-
-    // node_indices
-    fgets(buffer, sizeof(buffer), file);
-    int actual_nodes = 0;
-    for (char *p = buffer; *p; p++) {
-        if (*p == ';')
-            actual_nodes++;
-    }
-    actual_nodes++;
-
-    g->num_nodes = actual_nodes;
-    g->node_indices = (int*)malloc(g->num_nodes * sizeof(int));
-
-    token = strtok(buffer, ";");
-    int count = 0;
-    while (token != NULL) {
-        g->node_indices[count++] = atoi(token);
-        token = strtok(NULL, ";");
-    }
-
-    // row_pointers
-    fgets(buffer, sizeof(buffer), file);
-    int row_pointers_count = 0;
-    for (char *p = buffer; *p; p++) {
-        if (*p == ';') row_pointers_count++;
-    }
-    row_pointers_count++;
-
-    g->row_pointers = (int*)malloc(row_pointers_count * sizeof(int));
-
-    token = strtok(buffer, ";");
-    count = 0;
-    while (token != NULL) {
-        g->row_pointers[count++] = atoi(token);
-        token = strtok(NULL, ";");
+        // Fill CSR arrays
+        int edge_index = 0;
+        matrix->row_ptr[0] = 0; // First row always starts at index 0
+    
+        for (int i = 0; i < graph->num_vertices; i++) {
+            //printf("Debug: Processing vertex %d\n", i);
+            //printf("Debug: group_sizes[%d] = %d\n", i, graph->group_sizes[i]);
+    
+            for (int j = 0; j < graph->group_sizes[i]; j++) {
+                int col = graph->edge_groups[i][j];
+    
+                // Validate column index
+                if (col < 0 || col >= graph->num_vertices) {
+                    printf("Error: Invalid column index %d for vertex %d\n", col, i);
+                    free_sparse_matrix(matrix);
+                    return NULL;
+                }
+    
+                // Populate CSR arrays
+                matrix->col_indices[edge_index] = col;
+                matrix->values[edge_index] = 1.0; // Assuming unweighted graph
+                //printf("Debug: Adding edge (%d -> %d) at index %d\n", i, col, edge_index);
+                edge_index++;
+            }
+            matrix->row_ptr[i + 1] = edge_index; // Mark end of row
+        }
+        return matrix;
     }
 
-    // Wczytaj edge_groups
-    fgets(buffer, sizeof(buffer), file);
-    int edge_count = 0;
-    for (char *p = buffer; *p; p++) {
-        if (*p == ';')
-            edge_count++;
+void print_sparse_matrix(SparseMatrix *matrix) 
+{
+    printf("Wartości niezerowych elementów:\n");
+    for (int i = 0; i < matrix->nnz; i++) {
+        printf("%f ", matrix->values[i]);
     }
-    edge_count++;
+    printf("\n\nIndeksy kolumn:\n");
+    for (int i = 0; i < matrix->nnz; i++) {
+        printf("%d ", matrix->col_indices[i]);
+    }
+    printf("\n\nWskazniki wierszy:\n");
+    for (int i = 0; i <= matrix->rows; i++) {
+        printf("%d ", matrix->row_ptr[i]);
+    }
+    printf("\n");
+}
 
-    g->num_edges = edge_count;
-    g->edge_groups = (int*)malloc(g->num_edges * sizeof(int));
+void print_dense_adjacency_matrix(SparseMatrix *matrix) 
+{
+    printf("Adjacency Matrix (Dense Format):\n");
 
-    token = strtok(buffer, ";");
-    count = 0;
-    while (token != NULL) {
-        g->edge_groups[count++] = atoi(token);
-        token = strtok(NULL, ";");
+    for (int i = 0; i < matrix->rows; i++) {
+        int start = matrix->row_ptr[i];
+        int end = matrix->row_ptr[i + 1];
+
+        // Create a row initialized to 0
+        int *row = (int*)calloc(matrix->cols, sizeof(int));
+        if (!row) {
+            printf("Error: Failed to allocate memory for row buffer\n");
+            return;
+        }
+
+        // Populate the row with non-zero values
+        for (int j = start; j < end; j++) {
+            row[matrix->col_indices[j]] = 1; // Adjacency matrix values are 1
+        }
+
+        // Print the row
+        for (int j = 0; j < matrix->cols; j++) {
+            printf("%d ", row[j]);
+        }
+        printf("\n");
+
+        free(row); // Free the row buffer
+    }
+}
+
+void print_dense_matrix(SparseMatrix *matrix) 
+{
+    if (!matrix) {
+        printf("Error: Matrix is NULL\n");
+        return;
     }
 
-    //group_pointers
-    fgets(buffer, sizeof(buffer), file);
-    int group_pointers_count = 0;
-    for (char *p = buffer; *p; p++) {
-        if (*p == ';') group_pointers_count++;
+    printf("Matrix (Dense Format):\n");
+
+    for (int i = 0; i < matrix->rows; i++) {
+        int start = matrix->row_ptr[i];
+        int end = matrix->row_ptr[i + 1];
+
+        // Create a row initialized to 0
+        int *row = (int *)calloc(matrix->cols, sizeof(int));
+        if (!row) {
+            printf("Error: Failed to allocate memory for row buffer\n");
+            return;
+        }
+
+        // Populate the row with non-zero values
+        for (int j = start; j < end; j++) {
+            row[matrix->col_indices[j]] = (int)matrix->values[j];
+        }
+
+        // Print the row
+        for (int j = 0; j < matrix->cols; j++) {
+            printf("%d ", row[j]);
+        }
+        printf("\n");
+
+        free(row); // Free the row buffer
     }
-    group_pointers_count++;
+}
 
-    g->group_pointers = (int*)malloc(group_pointers_count * sizeof(int));
-
-    token = strtok(buffer, ";");
-    count = 0;
-    while (token != NULL) {
-        g->group_pointers[count++] = atoi(token);
-        token = strtok(NULL, ";");
+void free_sparse_matrix(SparseMatrix *matrix) 
+{
+    if (matrix) {
+        free(matrix->values);
+        free(matrix->col_indices);
+        free(matrix->row_ptr);
+        free(matrix);
     }
-
-    fclose(file);
-    return g;
 }
