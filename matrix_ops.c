@@ -1,30 +1,27 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "graph.h"
+#include <math.h>
+#include "matrix_ops.h"
 
 SparseMatrix* transpose_sparse_matrix(SparseMatrix *matrix) {
-    // Allocate memory for the transposed matrix
+    //alokowanie pamieci dla macierzy transponowanej
     SparseMatrix *transpose = (SparseMatrix *)malloc(sizeof(SparseMatrix));
     transpose->rows = matrix->cols;
     transpose->cols = matrix->rows;
     transpose->nnz = matrix->nnz;
 
-    // Allocate memory for the transposed matrix arrays
     transpose->values = (double *)malloc(matrix->nnz * sizeof(double));
     transpose->col_indices = (int *)malloc(matrix->nnz * sizeof(int));
     transpose->row_ptr = (int *)calloc((matrix->cols + 1), sizeof(int));
 
-    // Step 1: Count the number of non-zero elements in each column of the original matrix
     for (int i = 0; i < matrix->nnz; i++) {
         transpose->row_ptr[matrix->col_indices[i] + 1]++;
     }
 
-    // Step 2: Compute the cumulative sum to get the row_ptr array
     for (int i = 0; i < matrix->cols; i++) {
         transpose->row_ptr[i + 1] += transpose->row_ptr[i];
     }
 
-    // Step 3: Populate the transposed matrix
     int *current_pos = (int *)calloc(matrix->cols, sizeof(int));
     for (int i = 0; i < matrix->cols; i++) {
         current_pos[i] = transpose->row_ptr[i];
@@ -42,29 +39,50 @@ SparseMatrix* transpose_sparse_matrix(SparseMatrix *matrix) {
         }
     }
 
-    // Free temporary memory
     free(current_pos);
-
     return transpose;
 }
 
+//funkcja pomocnicza do macierzy sasiedztwa
 SparseMatrix* add_sparse_and_transpose_binary(SparseMatrix *matrix) {
-    // Transpose the matrix
-    SparseMatrix *transpose = transpose_sparse_matrix(matrix);
+    if (!matrix) {
+        printf("Błąd: Macierz wejściowa jest NULL.\n");
+        return NULL;
+    }
 
-    // Allocate memory for the result matrix
+    SparseMatrix *transpose = transpose_sparse_matrix(matrix);
+    if (!transpose) {
+        printf("Błąd: Nie udało się transponować macierzy.\n");
+        return NULL;
+    }
+
     SparseMatrix *result = (SparseMatrix *)malloc(sizeof(SparseMatrix));
+    if (!result) {
+        printf("Błąd: Nie udało się alokować pamięci dla macierzy z wynikiem.\n");
+        free_sparse_matrix(transpose);
+        return NULL;
+    }
+
     result->rows = matrix->rows;
     result->cols = matrix->cols;
-    result->nnz = 0; // Will calculate the number of non-zero elements dynamically
+    result->nnz = 0;
 
-    // Temporary arrays to store the result in COO format before converting to CSR
     int max_nnz = matrix->nnz + transpose->nnz;
     double *temp_values = (double *)malloc(max_nnz * sizeof(double));
     int *temp_col_indices = (int *)malloc(max_nnz * sizeof(int));
     int *temp_row_ptr = (int *)calloc((matrix->rows + 1), sizeof(int));
 
-    // Step 1: Iterate through each row and merge corresponding elements from both matrices
+    if (!temp_values || !temp_col_indices || !temp_row_ptr) {
+        printf("Błąd: Nie udało się alokować pamięci dla tymczasowych mcierzy.\n");
+        free(temp_values);
+        free(temp_col_indices);
+        free(temp_row_ptr);
+        free_sparse_matrix(transpose);
+
+        if (result) free(result);
+        return NULL;
+    }
+
     int temp_nnz = 0;
     for (int row = 0; row < matrix->rows; row++) {
         int i = matrix->row_ptr[row];
@@ -75,18 +93,15 @@ SparseMatrix* add_sparse_and_transpose_binary(SparseMatrix *matrix) {
             int col_j = (j < transpose->row_ptr[row + 1]) ? transpose->col_indices[j] : matrix->cols;
 
             if (col_i == col_j) {
-                // If either matrix has a 1, set the result to 1
                 temp_values[temp_nnz] = 1.0;
                 temp_col_indices[temp_nnz] = col_i;
                 i++;
                 j++;
             } else if (col_i < col_j) {
-                // Take value from the original matrix
                 temp_values[temp_nnz] = 1.0;
                 temp_col_indices[temp_nnz] = col_i;
                 i++;
             } else {
-                // Take value from the transpose matrix
                 temp_values[temp_nnz] = 1.0;
                 temp_col_indices[temp_nnz] = col_j;
                 j++;
@@ -94,17 +109,23 @@ SparseMatrix* add_sparse_and_transpose_binary(SparseMatrix *matrix) {
 
             temp_nnz++;
         }
-
         temp_row_ptr[row + 1] = temp_nnz;
     }
 
-    // Step 2: Allocate memory for the result matrix arrays
     result->values = (double *)malloc(temp_nnz * sizeof(double));
     result->col_indices = (int *)malloc(temp_nnz * sizeof(int));
     result->row_ptr = (int *)malloc((matrix->rows + 1) * sizeof(int));
-    result->nnz = temp_nnz;
 
-    // Step 3: Copy the temporary arrays into the result matrix
+    if (!result->values || !result->col_indices || !result->row_ptr) {
+        printf("Błąd: Nie udało się alokować pamięci dla elementow macierzy wynikowej.\n");
+        free(temp_values);
+        free(temp_col_indices);
+        free(temp_row_ptr);
+        free_sparse_matrix(transpose);
+        free_sparse_matrix(result);
+        return NULL;
+    }
+
     for (int i = 0; i < temp_nnz; i++) {
         result->values[i] = temp_values[i];
         result->col_indices[i] = temp_col_indices[i];
@@ -112,47 +133,112 @@ SparseMatrix* add_sparse_and_transpose_binary(SparseMatrix *matrix) {
     for (int i = 0; i <= matrix->rows; i++) {
         result->row_ptr[i] = temp_row_ptr[i];
     }
+    result->nnz = temp_nnz;
 
-    // Free temporary memory
     free(temp_values);
     free(temp_col_indices);
-    free(temp_row_ptr); 
-
-    // Free the transpose matrix
+    free(temp_row_ptr);
     free_sparse_matrix(transpose);
-    
-    // Free the original matrix
-    free_sparse_matrix(matrix);
-
     return result;
 }
 
+//na podstawie macierzy sasiedzstwa (tej stworzonej z sumy macierzy saiedzstwa i jej transpozycji)!
 SparseMatrix* create_degree_matrix(SparseMatrix *adj_matrix) {
-    // Allocate memory for the degree matrix
+
     SparseMatrix *degree_matrix = (SparseMatrix *)malloc(sizeof(SparseMatrix));
     degree_matrix->rows = adj_matrix->rows;
     degree_matrix->cols = adj_matrix->cols;
-    degree_matrix->nnz = adj_matrix->rows; // Only diagonal elements are non-zero
+    degree_matrix->nnz = adj_matrix->rows;
 
-    // Allocate memory for the degree matrix arrays
     degree_matrix->values = (double *)malloc(degree_matrix->nnz * sizeof(double));
     degree_matrix->col_indices = (int *)malloc(degree_matrix->nnz * sizeof(int));
     degree_matrix->row_ptr = (int *)malloc((degree_matrix->rows + 1) * sizeof(int));
 
-    // Step 1: Populate the degree matrix
     for (int row = 0; row < adj_matrix->rows; row++) {
-        // Degree is the number of non-zero elements in the row
+        if (row + 1 >= adj_matrix->rows + 1) {
+            printf("Błąd: row_ptr przekracza granice.\n");//xd
+            return NULL;
+        }
         int degree = adj_matrix->row_ptr[row + 1] - adj_matrix->row_ptr[row];
 
-        // Set the diagonal element
         degree_matrix->values[row] = (double)degree;
-        degree_matrix->col_indices[row] = row; // Diagonal element
-        degree_matrix->row_ptr[row] = row;     // Start of the row
+        degree_matrix->col_indices[row] = row;
+        degree_matrix->row_ptr[row] = row;
     }
-
-    // Set the last element of row_ptr
     degree_matrix->row_ptr[degree_matrix->rows] = degree_matrix->nnz;
-
     return degree_matrix;
 }
 
+//iloczyn skalarny
+double dot_product(DenseVector *v1, DenseVector *v2) {
+    double result = 0.0;
+    for (int i = 0; i < v1->size; ++i) {
+        result += v1->values[i] * v2->values[i];
+    }
+    return result;
+}
+
+//mnozenie macierzy rzadkiej w csr przez wektor gesty
+void multiply_sparse_matrix_vector(SparseMatrix *matrix, DenseVector *v, DenseVector *result) {
+
+    for (int i = 0; i < matrix->rows; i++) {
+        result->values[i] = 0.0;
+        for (int j = matrix->row_ptr[i]; j < matrix->row_ptr[i + 1]; j++) {
+            result->values[i] += matrix->values[j] * v->values[matrix->col_indices[j]];
+        }
+    }
+}
+
+//normalizacja wektora
+void normalize_vector(DenseVector *v) {
+    double norm = 0.0;
+    for (int i = 0; i < v->size; ++i) {
+        norm += v->values[i] * v->values[i];
+    }
+    norm = sqrt(norm);
+
+    if (norm == 0.0) {
+        printf("Błąd: Norma wektora wynosi 0.\n");
+        return; 
+    }
+
+    for (int i = 0; i < v->size; ++i) {
+        v->values[i] /= norm;
+    }
+}
+
+void print_eigenvectors(DenseVector **eigenvectors, int num_eigenvectors) {
+    if (!eigenvectors || num_eigenvectors <= 0) {
+        printf("Błąd: Niepoprawne wektory własne lub liczba wektorów własnych\n");
+        return;
+    }
+
+    printf("Wektory własne:\n");
+    for (int i = 0; i < num_eigenvectors; ++i) {
+        if (!eigenvectors[i]) {
+            printf("Błąd: Wektor własny %d jest NULL.\n", i + 1);
+            continue;
+        }
+
+        printf("Wektor własny %d:\n", i + 1);
+        for (int j = 0; j < eigenvectors[i]->size; ++j) {
+            printf("%8.4f ", eigenvectors[i]->values[j]);
+        }
+        printf("\n");
+    }
+}
+
+void free_eigenvectors(DenseVector **eigenvectors, int num_eigenvectors) {
+    if (!eigenvectors) return;
+
+    for (int i = 0; i < num_eigenvectors; ++i) {
+        if (eigenvectors[i]) {
+            free(eigenvectors[i]->values);
+            eigenvectors[i]->values = NULL;
+            free(eigenvectors[i]);
+            eigenvectors[i] = NULL;
+        }
+    }
+    free(eigenvectors);
+    eigenvectors = NULL;
+}
