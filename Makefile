@@ -5,19 +5,26 @@ CFLAGS = -g -Wall -Wno-missing-braces
 
 .PHONY: default all clean
 
-default: $(TARGET)
+default: dirs ./build/$(TARGET)
 
 all: default
 
-OBJECTS = $(patsubst %.c, %.o, $(wildcard *.c))
-HEADERS = $(wildcard *.h)
+# Create build directory if it doesn't exist
+dirs:
+	mkdir -p ./build
 
-%.o: %.c $(HEADERS)
+# Change source file path to src directory
+SOURCES = $(wildcard src/*.c)
+OBJECTS = $(patsubst src/%.c, ./build/%.o, $(SOURCES))
+HEADERS = $(wildcard src/*.h)
+
+# Update the object file compilation rule
+./build/%.o: src/%.c $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 .PRECIOUS: $(TARGET) $(OBJECTS)
 
-$(TARGET): $(OBJECTS)
+./build/$(TARGET): $(OBJECTS)
 	$(CC) $(OBJECTS) -Wall $(LIBS) -o $@
 
 # ./build/test: $(OBJECTS)
@@ -27,6 +34,6 @@ $(TARGET): $(OBJECTS)
 # 	./build/test
 
 clean:
-	-rm -f *.o
-	-rm -f $(TARGET)
-
+	-rm -f ./build/*.o
+	-rm -f ./build/$(TARGET)
+	-rmdir ./build
