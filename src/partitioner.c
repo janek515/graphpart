@@ -88,16 +88,16 @@ PartitionResult *spectral_partition(Graph *graph, int num_parts, float max_imbal
     free_sparse_matrix(matrix);
     matrix = temp;
 
-    verbose("Building laplacian matrix ");
+    verbose("Tworzenie macierzy Laplace'a ");
     fflush(stdout);
     SparseMatrix *laplacian = build_laplacian_matrix(matrix);
-    printfc_fg(GREY, "done.\n");
+    printfc_fg(GREY, "skończone.\n");
 
     int num_eigenvectors = num_parts - 1;
-    verbose("Computing eigenvectors ");
+    verbose("Przetwarzanie wektorów własnych ");
     fflush(stdout);
     DenseVector **eigenvectors = compute_eigenvectors(laplacian, num_eigenvectors);
-    printfc_fg(GREY, "done.\n");
+    printfc_fg(GREY, "skończone.\n");
 
     double **spectral_points = malloc(graph->num_vertices * sizeof(double *));
     for (int i = 0; i < graph->num_vertices; i++) {
@@ -129,7 +129,7 @@ PartitionResult *spectral_partition(Graph *graph, int num_parts, float max_imbal
             }
             best_result = current_result;
             min_cut_edges = current_result->cut_edges;
-            info("Znaleziono lepsze rozwiązanie: przecięte krawędzie = %d, nierównowaga = %.2f\n",
+            verbose("Znaleziono lepsze rozwiązanie: przecięte krawędzie = %d, nierównowaga = %.2f\n",
                  min_cut_edges, current_result->imbalance);
         } else {
             free_partition_result(current_result);

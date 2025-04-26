@@ -29,7 +29,7 @@ SparseMatrix *build_laplacian_matrix(SparseMatrix *adj_matrix) {
     laplacian_matrix->row_ptr = malloc((laplacian_matrix->rows + 1) * sizeof(int));
 
     if (!laplacian_matrix->values || !laplacian_matrix->col_indices || !laplacian_matrix->row_ptr) {
-        error("Nie udało się zaalokować pamięci dla elementó macierzy Laplace'a.\n");
+        error("Nie udało się zaalokować pamięci dla elementów macierzy Laplace'a.\n");
 
         free(laplacian_matrix->values);
         free(laplacian_matrix->col_indices);

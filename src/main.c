@@ -40,6 +40,10 @@ int main(int argc, char **argv) {
         return 1;
     }
     print_graph_details(graphs[graph_index]);
+    if (config.num_attempts > 10000 && graphs[graph_index]->num_vertices > 10000) {
+        warn(" Graf jest bardzo duży, przy podanej liczbie powtórzeń "
+            "przetwarzanie może zająć dużo czasu.\n");
+    }
 
     PartitionResult *result =
         spectral_partition(graphs[graph_index], num_parts, max_imbalance, num_attempts);
@@ -50,10 +54,8 @@ int main(int argc, char **argv) {
 
     if (config.output_format == FORMAT_BINARY) {
         save_in_binary_file(result, config.output_filename);
-    } else if (config.output_format == FORMAT_TEXT) {
-        save_in_text_file(result, config.output_filename);
     } else {
-        save_in_csrrg_format(result, graphs[graph_index], config.output_filename);
+        save_in_text_file(result, config.output_filename);
     }
 
     free_config(&config);

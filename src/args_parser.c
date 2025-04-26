@@ -100,7 +100,7 @@ int parse_args(int argc, char *argv[], Config *config) {
                 config->output_filename = strdup(argv[i]);
                 char *ext = (config->output_format == FORMAT_BINARY)
                                 ? "bin"
-                                : ((config->output_format == FORMAT_TEXT) ? "txt" : "csrrg");
+                                : "txt";
                 warn("Podano rozszerzenie niezgodne z podanym formatem albo nie "
                      "podano formatu i użyto domyślnego (text). Zmieniam "
                      "rozszerzenie na poprawne.\n");
@@ -122,13 +122,6 @@ int parse_args(int argc, char *argv[], Config *config) {
                     config->output_format = FORMAT_BINARY;
                     if (config->output_filename) {
                         char *new_filename = ensure_extension(config->output_filename, "bin");
-                        free(config->output_filename);
-                        config->output_filename = new_filename;
-                    }
-                } else if (strcmp(argv[i], "csrrg") == 0) {
-                    config->output_format = FORMAT_CSRRG;
-                    if (config->output_filename) {
-                        char *new_filename = ensure_extension(config->output_filename, "csrrg");
                         free(config->output_filename);
                         config->output_filename = new_filename;
                     }
@@ -216,12 +209,13 @@ int parse_args(int argc, char *argv[], Config *config) {
                    "binarnym.\n");
             printf("\n");
             printf("Użycie programu: %s [opcje]\n", argv[0]);
+            printf("\n");
             printf("Opcje:\n");
             printf("  --input <filename>\n");
             printf("        Nazwa pilku wejściowego w formacie csrrg "
                    "[wymagane]\n");
             printf("\n");
-            printf("  --format <text|binary|csrrg>\n");
+            printf("  --format <text|binary>\n");
             printf("        Format wyjściowy [domyślnie: text]\n");
             printf("\n");
             printf("  --output <filename>\n");

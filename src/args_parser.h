@@ -1,7 +1,7 @@
 #ifndef ARGS_PARSER_H
 #define ARGS_PARSER_H
 
-typedef enum { FORMAT_TEXT, FORMAT_BINARY, FORMAT_CSRRG } OutputFormat;
+typedef enum { FORMAT_TEXT, FORMAT_BINARY } OutputFormat;
 
 typedef struct {
     char *input_filename;       // Nazwa pliku wejsciowego
