@@ -81,7 +81,7 @@ PartitionResult *spectral_partition(Graph *graph, int num_parts, float max_imbal
     SparseMatrix *matrix = create_adjacency_matrix(graph);
     SparseMatrix *temp = add_sparse_and_transpose_binary(matrix);
     if (!temp) {
-        error("Failed to process adjacency matrix.\n");
+        error("Nie udało się przetworzyć macierzy sąsiedztwa.\n");
         free_sparse_matrix(matrix);
     }
 
